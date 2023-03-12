@@ -25,14 +25,17 @@ extern "C"
 #pragma endregion
 
 /**
- * @brief 
- * 
+ * @brief Set this macro to a non-zero value to use multiple user-defined UART buffers
+ */
+#define UART_MULTIPLE_BUFFERS 0
+    
+/**
+ * @brief Maximum RX buffer size in bytes
  */
 #define UART_RX_BUFFER_SIZE 128 					
 
 /**
- * @brief 
- * 
+ * @brief Set this macro to a non-zero value to activate logging functionality.
  */
 #define UART_BUFFER_LOG 0
 
@@ -43,8 +46,7 @@ typedef enum _UART_rxQueue_Status{
 } UART_rxQueue_Status;
 
 /**
- * @brief 
- * 
+ * @brief Data structure definition for UART FIFO buffer
  */
 typedef struct _UARTBuffer{
     uint8_t rxBuffer[UART_RX_BUFFER_SIZE];
@@ -54,134 +56,255 @@ typedef struct _UARTBuffer{
     uint8_t (*readByte)(void);
 } UARTBuffer;
 
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+
+#else
+/**
+ * @brief Single UART buffer
+ */
+static UARTBuffer uartBuffer;
+#endif
+
 #pragma region Function prototypes
 
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
- * @brief 
- * 
- * @param uartBuffer 
- * @param writeByte_callback 
- * @param readByte_callback 
+ * @brief UART buffer initialization (Multiple UART buffers)
+ * @param uartBuffer Reference to UART buffer 
+ * @param writeByte_callback Reference to writeByte callback function
+ * @param readByte_callback Reference to readByte callback function
  */
-void uart_buffer_init(UARTBuffer *uartBuffer, void (*writeByte_callback)(uint8_t), uint8_t (readByte_callback)(void));
-
+void uart_buffer_init(UARTBuffer *uartBuffer, void (*writeByte_callback)(uint8_t), uint8_t (*readByte_callback)(void));
+#else
 /**
- * @brief Rutina para mandar cadena de caracteres vía EUSART
+ * @brief UART buffer initialization (Single UART buffer)
+ * @param writeByte_callback Reference to writeByte callback function
+ * @param readByte_callback Reference to readByte callback function
+ */
+void uart_buffer_init(void (*writeByte_callback)(uint8_t), uint8_t (*readByte_callback)(void));
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Sends a string of characters through UART
  * 
- * @param uartBuffer 
- * @param str 
+ * @param uartBuffer Reference to UART buffer 
+ * @param str String of characters to be send
  */
 void uart_puts(UARTBuffer *uartBuffer, const char *str);
-
+#else
 /**
- * @brief Función para lectura de datos vía EUSART
- * 
- * @param uartBuffer 
- * @param buffer 
- * @param len 
+ * @brief Sends a string of characters through UART
+ * @param str String of characters to be send
+ */
+void uart_puts(const char *str);
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Gets a string of characters through UART
+ * @param uartBuffer Reference to UART buffer 
+ * @param buffer Reference to char array that will store the received characters
+ * @param len Byte quantity to read
  */
 void uart_gets(UARTBuffer *uartBuffer, char *buffer, size_t len); 
-
+#else
 /**
- * @brief Manda cadena de caracteres precedida de CR y NL
+ * @brief Gets a string of characters through UART
+ * @param buffer Reference to char array that will store the received characters
+ * @param len Byte quantity to read
+ */
+void uart_gets(char *buffer, size_t len);
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Sends a string of characters through UART appending CR & LF
  * 
- * @param uartBuffer 
- * @param str 
+ * @param uartBuffer Reference to UART buffer 
+ * @param str String of characters to be send
  */
 void uart_writeLine(UARTBuffer *uartBuffer, const char *str);
-
+#else
 /**
- * @brief Rutina para mandar arreglo de bytes vía EUSART
+ * @brief Sends a string of characters through UART appending CR & LF
  * 
- * @param uartBuffer 
- * @param buffer 
- * @param len 
+ * @param str String of characters to be send
+ */
+void uart_writeLine(const char *str);
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Sends a byte buffer through UART
+ * 
+ * @param uartBuffer Reference to UART buffer 
+ * @param buffer Byte buffer to be send
+ * @param len Byte quantity to send
  */
 void uart_writeBuffer(UARTBuffer *uartBuffer, uint8_t *buffer, size_t len); 
-
+#else
 /**
- * @brief 
- * 
- * @param uartBuffer 
- * @param data 
- * @param len 
+ * @brief Sends a byte buffer through UART
+ * @param buffer Byte buffer to be send
+ * @param len Byte quantity to send
  */
-void uart_write(UARTBuffer *uartBuffer, void* data, uint16_t len);
+void uart_writeBuffer( uint8_t *buffer, size_t len); 
+#endif
 
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
- * @brief 
+ * @brief Sends data (any type) through UART. Internally, data providen will be casted to an array of bytes
  * 
- * @param uartBuffer 
- * @param data 
- * @param len 
+ * @param uartBuffer Reference to UART buffer 
+ * @param data Reference to data that is going to be sended
+ * @param len Byte quantity to be send
  */
-void uart_read(UARTBuffer *uartBuffer, void* data, uint16_t len);
-
+void uart_write(UARTBuffer *uartBuffer, void* data, size_t len);
+#else
 /**
- * @brief Rutina a ejecutar en interrupción por recepción uart
+ * @brief Sends data (any type) through UART. Internally, data providen will be casted to an array of bytes
+ * @param data Reference to data that is going to be sended
+ * @param len Byte quantity to be send
+ */
+void uart_write(void* data, size_t len);
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Receives data (any type) through UART. Internally, data providen will be casted to an array of bytes
  * 
- * @param uartBuffer 
+ * @param uartBuffer Reference to UART buffer 
+ * @param data Reference to data that is going to be received
+ * @param len Byte quantity to be received
+ */
+void uart_read(UARTBuffer *uartBuffer, void* data, size_t len);
+#else
+void uart_read(void* data, size_t len);
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Serial reception interrupt handler
+ * 
+ * @param uartBuffer Reference to UART buffer 
  */
 void uart_interruptHandler(UARTBuffer *uartBuffer);
+#else
+/**
+ * @brief Serial reception interrupt handler
+ */
+void uart_interruptHandler(void);
+#endif
 
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
  * @brief Returns available bytes in indicated UART buffer
- * 
- * @param uartBuffer 
- * @return uint16_t 
+ * @param uartBuffer Reference to UART buffer 
+ * @return size_t Available bytes in UART buffer
  */
-uint16_t uart_dataAvailable(UARTBuffer *uartBuffer); 
-
+size_t uart_dataAvailable(UARTBuffer *uartBuffer); 
+#else
 /**
+ * @brief Returns available bytes in indicated UART buffer
+ * @return size_t Available bytes in UART buffer
+ */
+size_t uart_dataAvailable(void); 
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Reads the first byte from the UART buffer and "removes" it from the FIFO
+ * @param uartBuffer Reference to UART buffer 
+ * @param byte Reference to store read byte
+ */
+void uart_readByteBuffer(UARTBuffer *uartBuffer, uint8_t *byte);
+#else
+/**
+ * @brief Reads the first byte from the UART buffer and "removes" it from the FIFO
+ * @param byte Reference to store read byte
+ */
+void uart_readByteBuffer(uint8_t *byte);
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Reads the first byte from the UART buffer as a query only (doesn't modify UART buffer indexes)
+ * @param uartBuffer Reference to UART buffer 
+ * @param data Reference to store read byte
+ * @return UART_rxQueue_Status 
+ */
+UART_rxQueue_Status uart_firstByteReceived(UARTBuffer *uartBuffer, uint8_t *byte);
+#else
+/**Reads the first byte from the UART buffer as a query only (doesn't modify UART buffer indexes) 
  * @brief 
- * 
- * @param uartBuffer 
- * @param byte 
+ * @param byte Reference to store read byte
  * @return UART_rxQueue_Status 
  */
-UART_rxQueue_Status uart_readByteBuffer(UARTBuffer *uartBuffer, uint8_t *byte);
+UART_rxQueue_Status uart_firstByteReceived(uint8_t *byte);
+#endif
 
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
- * @brief  Devuelve el primer dato del buffer FIFO sin modificar índices de principio y fin, a manera de consulta únicamente
- * 
- * @param uartBuffer 
- * @param data 
+ * @brief Reads the last byte from the UART buffer as a query only (doesn't modify UART buffer indexes) 
+ * @param uartBuffer Reference to UART buffer 
+ * @param byte Reference to store read byte 
  * @return UART_rxQueue_Status 
  */
-UART_rxQueue_Status uart_firstByteReceived(UARTBuffer *uartBuffer, uint8_t *data);
-
+UART_rxQueue_Status uart_lastByteReceived(UARTBuffer *uartBuffer, uint8_t *byte );
+#else
 /**
- * @brief Devuelve el último dato del buffer FIFO sin modificar índices de principio y fin, a manera de consulta únicamente
- * 
- * @param uartBuffer 
- * @param data 
+ * @brief Reads the last byte from the UART buffer as a query only (doesn't modify UART buffer indexes) 
+ * @param byte Reference to store read byte
  * @return UART_rxQueue_Status 
  */
-UART_rxQueue_Status uart_lastByteReceived(UARTBuffer *uartBuffer, uint8_t *data );
+UART_rxQueue_Status uart_lastByteReceived(uint8_t *byte );
+#endif
 
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
- * @brief Lectura de 'len' elementos del buffer uart
- * 
- * @param uartBuffer 
- * @param buffer 
- * @param len 
+ * @brief Reads 'len' bytes from UART buffer
+ * @param uartBuffer Reference to UART buffer 
+ * @param buffer Reference to buffer that will store data read
+ * @param len Byte quantity to read
  */
 void uart_readBuffer(UARTBuffer *uartBuffer, uint8_t *buffer,size_t len);
-
+#else
 /**
- * @brief Lee todos los datos del buffer, reiniciando sus indices
- * 
- * @param uartBuffer 
+ * @brief Reads 'len' bytes from UART buffer
+ * @param buffer Reference to buffer that will store data read
+ * @param len Byte quantity to read
+ */
+void uart_readBuffer(uint8_t *buffer,size_t len);
+#endif
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Flush UART buffer, resetting indexes and discarding all data stored
+ * @param uartBuffer Reference to UART buffer 
  */
 void uart_flushBuffer(UARTBuffer *uartBuffer); 
+#else
+/**
+ * @brief Flush UART buffer, resetting indexes and discarding all data stored
+ */
+void uart_flushBuffer(void);
+#endif
 
 #if defined(UART_BUFFER_LOG) && (UART_BUFFER_LOG > 0)
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
- * @brief 
- * 
- * @param uartBuffer 
+ * @brief Dumps UART buffer content through std output
+ * @param uartBuffer Reference to UART buffer 
  */
 void uart_printBuffer(UARTBuffer *uartBuffer);
+#else
+/**
+ * @brief Dumps UART buffer content through std output
+ */
+void uart_printBuffer(void);
+#endif
 #endif
 
 #pragma endregion
