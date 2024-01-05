@@ -10,6 +10,8 @@
  */
 
 #include "uart_buffer.h"
+#include "logger.h"
+#include "AT.h"
 
 #if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 void uart_buffer_init(UARTBuffer *uartBuffer, void (*writeByte_callback)(uint8_t), uint8_t (*readByte_callback)(void))
@@ -49,24 +51,80 @@ void uart_puts(const char *str)
 #endif
 
 #if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
-void uart_gets(UARTBuffer *uartBuffer, char *buffer, size_t len)
+char *uart_gets(UARTBuffer *uartBuffer, char *buffer, size_t len)
 {
-    for (size_t i = 0; i != len; i++)
+     uint8_t c;
+    size_t i = 0;
+    while(i != len)
     {
-        while(!uart_dataAvailable(uartBuffer)){};
-        uart_readByteBuffer(uartBuffer, buffer);
-        buffer++;
+        while(uart_dataAvailable(uartBuffer) == 0){};
+        uart_readByteBuffer(&c);
+        if((char)c=='\r'){
+            buffer[i++] = '\r'; // CR was received
+            while(uart_dataAvailable(uartBuffer) == 0){};
+            uart_readByteBuffer(&c);
+            if((char)c != '\n'){
+                return NULL;    // CR was received, but without a following LF
+            }
+            buffer[i++] = '\n';
+            break;
+        }
+        else if((char)c == '\n'){
+            buffer[i++] = '\n'; // LF received
+            break;
+        }
+        else if((char)c == '\0'){
+            buffer[i++] = '\0'; // '\0' received
+            break;
+        }
+        else{
+            buffer[i++] = (char)c;    // Valid character  
+        }
+        
     }
+    if(i == len - 1){   // String is too long
+        buffer[i] = '/0';
+        return NULL;
+    }
+    return buffer;  // Valid string
 }
 #else
-void uart_gets(char *buffer, size_t len)
+char *uart_gets(char *buffer, size_t len)
 {
-    for (size_t i = 0; i != len; i++)
+    uint8_t c;
+    size_t i = 0;
+    while(i != len)
     {
         while(uart_dataAvailable() == 0){};
-        uart_readByteBuffer(buffer);
-        buffer++;
+        uart_readByteBuffer(&c);
+        if((char)c=='\r'){
+            buffer[i++] = '\r'; // CR was received
+            while(uart_dataAvailable() == 0){};
+            uart_readByteBuffer(&c);
+            if((char)c != '\n'){
+                return NULL;    // CR was received, but without a following LF
+            }
+            buffer[i++] = '\n';
+            break;
+        }
+        else if((char)c == '\n'){
+            buffer[i++] = '\n'; // LF received
+            break;
+        }
+        else if((char)c == '\0'){
+            buffer[i++] = '\0'; // '\0' received
+            break;
+        }
+        else{
+            buffer[i++] = (char)c;    // Valid character  
+        }
+        
     }
+    if(i == len - 1){   // String is too long
+        buffer[i] = '\0';
+        return NULL;
+    }
+    return buffer;  // Valid string
 }
 #endif
 
@@ -334,6 +392,19 @@ void uart_flushBuffer()
 }
 #endif
 
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+void uart_hardFlushBuffer(UARTBuffer *uartBuffer){
+    memset(uartBuffer->rxBuffer,0,UART_RX_BUFFER_SIZE);
+    uart_flushBuffer(uartBuffer);
+}
+#else
+void uart_hardFlushBuffer(void){
+    memset(uartBuffer.rxBuffer,0,UART_RX_BUFFER_SIZE);
+    uart_flushBuffer();
+}
+#endif
+
 #if defined(UART_BUFFER_LOG) && (UART_BUFFER_LOG > 0)
 #if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 void uart_printBuffer(UARTBuffer *uartBuffer){
@@ -348,7 +419,7 @@ void uart_printBuffer(){
     printf("UART buffer print:\n");
     for (size_t i = 0; i != UART_RX_BUFFER_SIZE; i++)
     {
-        printf("Index: %u\tValue: 0x%02X\n",i,uartBuffer->rxBuffer[i]);
+        printf("i: %3u val: 0x%02X(%c)\n",i,uartBuffer.rxBuffer[i],uartBuffer.rxBuffer[i]);
     } 
 }
 #endif

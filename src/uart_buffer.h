@@ -32,12 +32,14 @@ extern "C"
 /**
  * @brief Maximum RX buffer size in bytes
  */
-#define UART_RX_BUFFER_SIZE 128 					
+#define UART_RX_BUFFER_SIZE 128				
 
 /**
  * @brief Set this macro to a non-zero value to activate logging functionality.
  */
 #define UART_BUFFER_LOG 0
+    
+static const char* UART_BUFFER_TAG = "UART-buffer";
 
 typedef enum _UART_rxQueue_Status{
     UART_RX_QUEUE_STATUS_OK = 0,
@@ -104,18 +106,20 @@ void uart_puts(const char *str);
 #if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
  * @brief Gets a string of characters through UART
- * @param uartBuffer Reference to UART buffer 
+ * @param uartBuffer Reference to UART buffer
  * @param buffer Reference to char array that will store the received characters
- * @param len Byte quantity to read
+ * @param len Max byte quantity to read
+ * @return 
  */
-void uart_gets(UARTBuffer *uartBuffer, char *buffer, size_t len); 
+char *uart_gets(UARTBuffer *uartBuffer, char *buffer, size_t len);
 #else
 /**
  * @brief Gets a string of characters through UART
  * @param buffer Reference to char array that will store the received characters
- * @param len Byte quantity to read
+ * @param len Max byte quantity to read
+ * @return 
  */
-void uart_gets(char *buffer, size_t len);
+char *uart_gets(char *buffer, size_t len);
 #endif
 
 #if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
@@ -281,15 +285,29 @@ void uart_readBuffer(uint8_t *buffer,size_t len);
 
 #if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
 /**
- * @brief Flush UART buffer, resetting indexes and discarding all data stored
+ * @brief Flush UART buffer, resetting indexes
  * @param uartBuffer Reference to UART buffer 
  */
 void uart_flushBuffer(UARTBuffer *uartBuffer); 
 #else
 /**
- * @brief Flush UART buffer, resetting indexes and discarding all data stored
+ * @brief Flush UART buffer, resetting indexes
  */
 void uart_flushBuffer(void);
+#endif
+
+
+#if defined(UART_MULTIPLE_BUFFERS) && (UART_MULTIPLE_BUFFERS > 0)
+/**
+ * @brief Flush UART buffer, resetting indexes and discarding all data stored
+ * @param uartBuffer Reference to UART buffer 
+ */
+void uart_hardFlushBuffer(UARTBuffer *uartBuffer); 
+#else
+/**
+ * @brief Flush UART buffer, resetting indexes and discarding all data stored
+ */
+void uart_hardFlushBuffer(void);
 #endif
 
 #if defined(UART_BUFFER_LOG) && (UART_BUFFER_LOG > 0)
